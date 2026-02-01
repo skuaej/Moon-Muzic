@@ -1,4 +1,3 @@
-
 import asyncio
 import os
 import re
@@ -9,7 +8,6 @@ from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 from MoonXMusic.utils.formatters import time_to_seconds
 
-# Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -26,18 +24,15 @@ class YouTubeAPI:
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         
-        # --- FIX: Dynamic Path for cookies.txt ---
-        # Get the directory where this file (Youtube.py) is located: .../MoonXMusic/platforms/
+        # Dynamic path for cookies
         platform_dir = os.path.dirname(os.path.abspath(__file__))
-        # Go up one level to: .../MoonXMusic/
         module_dir = os.path.dirname(platform_dir)
-        # Construct path to: .../MoonXMusic/assets/cookies.txt
         self.cookies_path = os.path.join(module_dir, "assets", "cookies.txt")
 
         if os.path.exists(self.cookies_path):
             logger.info(f"✅ Cookies file found at: {self.cookies_path}")
         else:
-            logger.warning(f"⚠️ Cookies file NOT found at: {self.cookies_path}. YouTube downloads might fail.")
+            logger.warning(f"⚠️ Cookies file NOT found at: {self.cookies_path}")
             self.cookies_path = None
 
     async def exists(self, link: str, videoid: Union[bool, str] = None):
@@ -102,7 +97,6 @@ class YouTubeAPI:
         for result in (await results.next())["result"]:
             return result["thumbnails"][0]["url"].split("?")[0]
 
-    # Helper function to run yt-dlp in a separate thread
     async def _dl_runner(self, link, opts):
         loop = asyncio.get_running_loop()
         
@@ -117,13 +111,12 @@ class YouTubeAPI:
                     base, _ = os.path.splitext(filename)
                     if opts['postprocessors'][0]['key'] == 'FFmpegExtractAudio':
                         return f"{base}.mp3"
-                
                 return filename
 
         try:
             return await loop.run_in_executor(None, run_download)
         except Exception as e:
-            logger.error(f"Download failed: {e}")
+            logger.error(f"Download Attempt Failed: {e}")
             return None
 
     async def video(self, link: str, videoid: Union[bool, str] = None):
@@ -134,6 +127,7 @@ class YouTubeAPI:
 
         opts = {
             'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
             'outtmpl': 'downloads/%(id)s.%(ext)s',
             'geo_bypass': True,
             'nocheckcertificate': True,
@@ -144,13 +138,10 @@ class YouTubeAPI:
         if self.cookies_path:
             opts['cookiefile'] = self.cookies_path
 
-        try:
-            downloaded_file = await self._dl_runner(link, opts)
-            if downloaded_file and os.path.exists(downloaded_file):
-                return 1, downloaded_file
-            return 0, "Video download failed"
-        except Exception as e:
-            return 0, f"Video download error: {e}"
+        downloaded_file = await self._dl_runner(link, opts)
+        if downloaded_file and os.path.exists(downloaded_file):
+            return 1, downloaded_file
+        return 0, "Video download failed"
 
     async def playlist(self, link, limit, user_id, videoid: Union[bool, str] = None):
         if videoid:
@@ -203,10 +194,7 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
         
-        ytdl_opts = {
-            "quiet": True,
-            "no_warnings": True,
-        }
+        ytdl_opts = {"quiet": True, "no_warnings": True}
         if self.cookies_path:
             ytdl_opts['cookiefile'] = self.cookies_path
 
@@ -271,6 +259,7 @@ class YouTubeAPI:
             'nocheckcertificate': True,
             'quiet': True,
             'no_warnings': True,
+            'ignoreerrors': True,
         }
 
         if self.cookies_path:
@@ -278,6 +267,7 @@ class YouTubeAPI:
 
         if songvideo:
             opts['format'] = format_id if format_id else 'bestvideo+bestaudio/best'
+            opts['merge_output_format'] = 'mp4'
         else:
             opts['format'] = 'bestaudio/best'
             opts['postprocessors'] = [{
@@ -286,14 +276,16 @@ class YouTubeAPI:
                 'preferredquality': '192',
             }]
 
-        try:
+        # Try Primary Download
+        downloaded_file = await self._dl_runner(link, opts)
+        
+        # Fallback for Audio if Primary fails (common with strict format checks)
+        if not downloaded_file and not songvideo:
+            logger.info("Retrying download with fallback format...")
+            opts['format'] = 'best' # Try best available and convert
             downloaded_file = await self._dl_runner(link, opts)
-            
-            if downloaded_file and os.path.exists(downloaded_file):
-                return downloaded_file, True
-            else:
-                return None, False
-        except Exception as e:
-            logger.error(f"Download Error: {e}")
-            return None, False
 
+        if downloaded_file and os.path.exists(downloaded_file):
+            return downloaded_file, True
+        else:
+            return None, False
