@@ -1,3 +1,4 @@
+
 import asyncio
 import os
 import re
@@ -103,8 +104,14 @@ class YouTubeAPI:
         def run_download():
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(link, download=True)
+                
+                # --- FIX: Check if info is None before accessing keys ---
+                if not info:
+                    return None
+                    
                 if 'entries' in info:
                     info = info['entries'][0]
+                    
                 filename = ydl.prepare_filename(info)
                 
                 if 'postprocessors' in opts and opts['postprocessors']:
@@ -279,7 +286,7 @@ class YouTubeAPI:
         # Try Primary Download
         downloaded_file = await self._dl_runner(link, opts)
         
-        # Fallback for Audio if Primary fails (common with strict format checks)
+        # Fallback for Audio if Primary fails
         if not downloaded_file and not songvideo:
             logger.info("Retrying download with fallback format...")
             opts['format'] = 'best' # Try best available and convert
@@ -289,3 +296,4 @@ class YouTubeAPI:
             return downloaded_file, True
         else:
             return None, False
+
