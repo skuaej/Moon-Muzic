@@ -2,12 +2,16 @@
 import asyncio
 import os
 import re
+import logging
 from typing import Union
 import yt_dlp
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 from MoonXMusic.utils.formatters import time_to_seconds
-from MoonXMusic import LOGGER
+
+# Use standard logging to avoid conflicts with custom LOGGER functions
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 try:
     from py_yt import VideosSearch
@@ -22,10 +26,10 @@ class YouTubeAPI:
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         
-        # Path to cookies.txt based on the image provided (assets/cookies.txt)
+        # Path to cookies.txt
         self.cookies_path = os.path.join(os.getcwd(), "assets", "cookies.txt")
         if not os.path.exists(self.cookies_path):
-            LOGGER.warn(f"Cookies file not found at {self.cookies_path}. Some videos may fail.")
+            logger.warning(f"Cookies file not found at {self.cookies_path}. Some videos may fail.")
             self.cookies_path = None
 
     async def exists(self, link: str, videoid: Union[bool, str] = None):
@@ -90,7 +94,7 @@ class YouTubeAPI:
         for result in (await results.next())["result"]:
             return result["thumbnails"][0]["url"].split("?")[0]
 
-    # Helper function to run yt-dlp in a separate thread to avoid blocking asyncio
+    # Helper function to run yt-dlp in a separate thread
     async def _dl_runner(self, link, opts):
         loop = asyncio.get_running_loop()
         
@@ -101,10 +105,8 @@ class YouTubeAPI:
                     info = info['entries'][0]
                 filename = ydl.prepare_filename(info)
                 
-                # If using postprocessors (like converting to mp3), the extension changes
                 if 'postprocessors' in opts and opts['postprocessors']:
                     base, _ = os.path.splitext(filename)
-                    # Assuming mp3 for audio based on config below
                     if opts['postprocessors'][0]['key'] == 'FFmpegExtractAudio':
                         return f"{base}.mp3"
                 
@@ -113,7 +115,7 @@ class YouTubeAPI:
         try:
             return await loop.run_in_executor(None, run_download)
         except Exception as e:
-            LOGGER.error(f"Download failed: {e}")
+            logger.error(f"Download failed: {e}")
             return None
 
     async def video(self, link: str, videoid: Union[bool, str] = None):
@@ -122,7 +124,6 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
 
-        # Video Options
         opts = {
             'format': 'bestvideo+bestaudio/best',
             'outtmpl': 'downloads/%(id)s.%(ext)s',
@@ -149,7 +150,6 @@ class YouTubeAPI:
         if "&" in link:
             link = link.split("&")[0]
             
-        # Using yt-dlp to get playlist items
         cmd = f"yt-dlp -i --get-id --flat-playlist --playlist-end {limit} --skip-download {link}"
         if self.cookies_path:
             cmd += f" --cookies {self.cookies_path}"
@@ -203,8 +203,6 @@ class YouTubeAPI:
             ytdl_opts['cookiefile'] = self.cookies_path
 
         ydl = yt_dlp.YoutubeDL(ytdl_opts)
-        
-        # Run extract_info in executor to allow async
         loop = asyncio.get_running_loop()
         
         try:
@@ -259,7 +257,6 @@ class YouTubeAPI:
         DOWNLOAD_DIR = "downloads"
         os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-        # Base Options
         opts = {
             'outtmpl': os.path.join(DOWNLOAD_DIR, '%(id)s.%(ext)s'),
             'geo_bypass': True,
@@ -271,11 +268,9 @@ class YouTubeAPI:
         if self.cookies_path:
             opts['cookiefile'] = self.cookies_path
 
-        # Configure for Audio or Video
         if songvideo:
             opts['format'] = format_id if format_id else 'bestvideo+bestaudio/best'
         else:
-            # Audio configuration
             opts['format'] = 'bestaudio/best'
             opts['postprocessors'] = [{
                 'key': 'FFmpegExtractAudio',
@@ -291,5 +286,6 @@ class YouTubeAPI:
             else:
                 return None, False
         except Exception as e:
-            LOGGER.error(f"Download Error: {e}")
+            logger.error(f"Download Error: {e}")
             return None, False
+
