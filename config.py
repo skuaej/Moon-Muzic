@@ -16,7 +16,7 @@ BOT_TOKEN = getenv("BOT_TOKEN")
 # Get your mongo url from cloud.mongodb.com
 MONGO_DB_URI = getenv("MONGO_DB_URI", None)
 
-DURATION_LIMIT_MIN = int(getenv("DURATION_LIMIT", 600))
+DURATION_LIMIT_MIN = int(getenv("DURATION_LIMIT", 30))
 
 # Set this to true if you want post ads automatically
 ADS_MODE = getenv("ADS_MODE", None)
@@ -35,15 +35,15 @@ HEROKU_API_KEY = getenv("HEROKU_API_KEY")
 
 UPSTREAM_REPO = getenv(
     "UPSTREAM_REPO",
-    "https://github.com/TEAM-NOBITA/Moon-Muzic",
+    "https://github.com/skuaej/Moon-Muzic",
 )
 UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "master")
 GIT_TOKEN = getenv(
     "GIT_TOKEN", None
 )  # Fill this variable if your upstream repository is private
 
-SUPPORT_CHANNEL = getenv("SUPPORT_CHANNEL", "https://t.me/SYSTEM_NETWORK_0")
-SUPPORT_CHAT = getenv("SUPPORT_CHAT", "https://t.me/SYSTEM_NETWORK")
+SUPPORT_CHANNEL = getenv("SUPPORT_CHANNEL", "https://t.me/jasminemusicgc")
+SUPPORT_CHAT = getenv("SUPPORT_CHAT", "https://t.me/jasminemusicgc")
 
 # Set this to True if you want the assistant to automatically leave chats after an interval
 AUTO_LEAVING_ASSISTANT = bool(getenv("AUTO_LEAVING_ASSISTANT", False))
@@ -55,7 +55,7 @@ SPOTIFY_CLIENT_SECRET = getenv("SPOTIFY_CLIENT_SECRET", None)
 
 
 # Maximum limit for fetching playlist's track from youtube, spotify, apple links.
-PLAYLIST_FETCH_LIMIT = int(getenv("PLAYLIST_FETCH_LIMIT", 25))
+PLAYLIST_FETCH_LIMIT = int(getenv("PLAYLIST_FETCH_LIMIT", 5))
 
 
 # Telegram audio and video file size limit (in bytes)
