@@ -9,7 +9,7 @@ from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 from MoonXMusic.utils.formatters import time_to_seconds
 
-# Use standard logging to avoid conflicts with custom LOGGER functions
+# Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,18 @@ class YouTubeAPI:
         self.listbase = "https://youtube.com/playlist?list="
         self.reg = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         
-        # Path to cookies.txt
-        self.cookies_path = os.path.join(os.getcwd(), "assets", "cookies.txt")
-        if not os.path.exists(self.cookies_path):
-            logger.warning(f"Cookies file not found at {self.cookies_path}. Some videos may fail.")
+        # --- FIX: Dynamic Path for cookies.txt ---
+        # Get the directory where this file (Youtube.py) is located: .../MoonXMusic/platforms/
+        platform_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up one level to: .../MoonXMusic/
+        module_dir = os.path.dirname(platform_dir)
+        # Construct path to: .../MoonXMusic/assets/cookies.txt
+        self.cookies_path = os.path.join(module_dir, "assets", "cookies.txt")
+
+        if os.path.exists(self.cookies_path):
+            logger.info(f"✅ Cookies file found at: {self.cookies_path}")
+        else:
+            logger.warning(f"⚠️ Cookies file NOT found at: {self.cookies_path}. YouTube downloads might fail.")
             self.cookies_path = None
 
     async def exists(self, link: str, videoid: Union[bool, str] = None):
