@@ -1,31 +1,31 @@
 # Copyright (c) 2025 Nand Yaduwanshi <NoxxOP>
-# Universal Downloader Module for Music Bots
-# Framework: Pyrogram
+# Framework: Pyrogram (MoonXMusic)
 
 import requests
 import json
-import os
+import logging
 from pyrogram import filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from MoonXMusic import app # Tera main app instance
+from MoonXMusic import app 
 
 # --- CONFIG ---
 API_URL = "https://instaaaa-pi.vercel.app/download"
+logger = logging.getLogger(__name__)
 
 def get_media_data(data):
-    """
-    Backend logic to find the best link (Hidden from user).
-    """
     results = data.get("all_results") or data.get("results", {})
+    # Root level check (TikTok/YT aggressive link)
+    root_link = data.get("clean_download_url")
+    
     metadata = {
-        "link": data.get("clean_download_url"),
+        "link": root_link if root_link and "token=" not in root_link else None,
         "title": "Universal Media",
         "desc": "Downloaded via Universal Bot",
         "platform": data.get("platform", "Media").capitalize(),
         "type": "video"
     }
 
-    # Search in all_results
+    # Deep scan providers
     for provider, content in results.items():
         if isinstance(content, dict) and content.get("status") != "failed":
             if content.get("title"): metadata["title"] = content["title"]
@@ -36,60 +36,60 @@ def get_media_data(data):
                 link = content.get(key)
                 if link and isinstance(link, str) and link.startswith("http"):
                     if "token=" in link and len(link) < 60: continue
-                    if any(x in link.lower() for x in [".jpg", ".png", ".webp"]): continue
-                    
                     metadata["link"] = link
                     if key == "mp3" or "spotify" in data.get("platform", "").lower():
                         metadata["type"] = "audio"
                     return metadata
     return metadata if metadata["link"] else None
 
-# --- AUTO DOWNLOAD HANDLER ---
-# Jab bhi koi user link bhejega, ye auto-detect karega
-@app.on_message(filters.regex(r"http(s)?://(www\.)?(facebook|fb|instagram|insta|tiktok|vt|youtube|youtu|spotify)\.com|be|link/"))
+# --- DOWNLOADER HANDLER ---
+# Ye regex ab vt.tiktok.com ko pakka pakdega
+@app.on_message(filters.regex(r"(https?://(?:www\.)?(?:tiktok\.com|vt\.tiktok\.com|instagram\.com|fb\.watch|facebook\.com|spotify\.com|youtube\.com|youtu\.be)/?\S+)") | filters.command(["dl", "download"]))
 async def universal_downloader(client, message: Message):
-    url = message.text
-    status = await message.reply_text("🔎 **Searching for your media...**")
+    # Agar command use ki hai toh link text se nikal lo
+    if message.command:
+        if len(message.command) < 2:
+            return await message.reply_text("❌ **Link toh bhej lodu!**\nUsage: `/dl [link]`")
+        url = message.command[1]
+    else:
+        url = message.text
+
+    status = await message.reply_text("🔎 **Scanning link...**")
+    print(f"[DEBUG] Hitting API for: {url}") # Terminal mein check karne ke liye
 
     try:
-        response = requests.get(f"{API_URL}?url={url}", timeout=25)
+        response = requests.get(f"{API_URL}?url={url}", timeout=30)
         data = response.json()
         media = get_media_data(data)
 
         if media and media["link"]:
             title = media['title'][:100]
-            description = media['desc']
-            platform = media['platform']
-            
-            caption = f"🎬 **{title}**\n👤 {description}\n\n✨ _Powered by @{client.me.username}_"
+            caption = f"🎬 **{title}**\n👤 {media['desc']}\n\n✨ _Powered by @{client.me.username}_"
             
             try:
-                # Direct Video/Audio Send
                 if media["type"] == "audio":
                     await message.reply_audio(audio=media["link"], caption=caption)
                 else:
-                    await message.reply_video(video=media["link"], caption=caption)
+                    await message.reply_video(video=media["link"], caption=caption, supports_streaming=True)
                 await status.delete()
-            except Exception:
-                # Backend Hidden: Button mode for large files
+            except Exception as e:
+                # Backend Hidden: Button mode
                 keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Download File", url=media['link'])]])
                 await status.edit_text(
-                    f"📦 **File Found on {platform}**\n\n🎬 **Title:** {title}\n👤 **Info:** {description}\n\n"
-                    "⚠️ _The file is too high quality or large for direct upload. Use the button below._",
+                    f"📦 **File Found on {media['platform']}**\n\n🎬 **Title:** {title}\n\n"
+                    "⚠️ _The file is too large for Telegram upload. Use the button below._",
                     reply_markup=keyboard
                 )
         else:
-            await status.edit_text("❌ **Sorry, I couldn't find any media for this link.**")
+            await status.edit_text("❌ **No working link found for this media.**")
     except Exception as e:
-        await status.edit_text(f"⚠️ **API Error:** Contact @NoxxOP")
+        print(f"[ERROR] API Call Fail: {e}")
+        await status.edit_text("⚠️ **API Error or Timeout.**")
 
 __MODULE__ = "Dᴏᴡɴʟᴏᴀᴅᴇʀ"
 __HELP__ = """
 **ᴜɴɪᴠᴇʀsᴀʟ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ:**
 
 • Jᴜsᴛ sᴇɴᴅ ᴀɴʏ sᴏᴄɪᴀʟ ᴍᴇᴅɪᴀ ʟɪɴᴋ (YT, FB, Iɴsᴛᴀ, TɪᴋTᴏᴋ, Sᴘᴏᴛɪғʏ).
-• Tʜᴇ ʙᴏᴛ ᴡɪʟʟ ᴀᴜᴛᴏ-ᴅᴇᴛᴇᴄᴛ ᴀɴᴅ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇ ᴍᴇᴅɪᴀ ꜰᴏʀ ʏᴏᴜ.
+• Oʀ ᴜsᴇ `/dl [ʟɪɴᴋ]` ɪғ ᴀᴜᴛᴏ-ᴅᴇᴛᴇᴄᴛ ꜰᴀɪʟs.
 """
-
-# ©️ Copyright Reserved - @NoxxOP 
-
