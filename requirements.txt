@@ -30,7 +30,7 @@ unidecode
 youtube-search
 youtube-search-python==1.6.6
 yt-dlp
-py_yt
+py-yt
 unidecode
 yt-dlp
 youtube-search
